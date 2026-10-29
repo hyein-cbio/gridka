@@ -2,13 +2,22 @@ name: CI
 
 on:
   workflow_dispatch:  # 수동 실행 허용
+    inputs:
+      test_branch:
+        description: 'Branch to test in this fork'
+        required: true
+        default: master
+        type: string
   push:
     branches: [master]
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.test_branch || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -18,6 +27,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Manual runs use the requested branch; push/PR runs keep checkout's default ref.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.test_branch || '' }}
+          persist-credentials: false
+
+      - name: Show tested revision
+        run: git show --no-patch --format='%H %s'
 
       - name: Install XcodeGen
         run: brew install xcodegen
